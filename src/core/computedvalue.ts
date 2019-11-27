@@ -88,6 +88,7 @@ export class ComputedValue<T> implements IObservable, IComputedValue<T>, IDeriva
     triggeredBy: string
     isComputing: boolean = false // to check for cycles
     isRunningSetter: boolean = false
+    //computed具体内容
     derivation: () => T
     setter: (value: T) => void
     isTracing: TraceMode = TraceMode.NONE
@@ -141,6 +142,7 @@ export class ComputedValue<T> implements IObservable, IComputedValue<T>, IDeriva
      */
     public get(): T {
         if (this.isComputing) fail(`Cycle detected in computation ${this.name}: ${this.derivation}`)
+        //1.轻量级计算
         if (globalState.inBatch === 0) {
             if (shouldCompute(this)) {
                 this.warnAboutUntrackedRead()
@@ -148,6 +150,7 @@ export class ComputedValue<T> implements IObservable, IComputedValue<T>, IDeriva
                 this.value = this.computeValue(false)
                 endBatch()
             }
+            //2. 重量级计算当globalState.inBatch值大于0，说明处于上级事务中
         } else {
             reportObserved(this)
             if (shouldCompute(this)) if (this.trackAndCompute()) propagateChangeConfirmed(this)
@@ -168,8 +171,7 @@ export class ComputedValue<T> implements IObservable, IComputedValue<T>, IDeriva
         if (this.setter) {
             invariant(
                 !this.isRunningSetter,
-                `The setter of computed value '${this
-                    .name}' is trying to update itself. Did you intend to update an _observable_ value, instead of the computed property?`
+                `The setter of computed value '${this.name}' is trying to update itself. Did you intend to update an _observable_ value, instead of the computed property?`
             )
             this.isRunningSetter = true
             try {
@@ -181,8 +183,7 @@ export class ComputedValue<T> implements IObservable, IComputedValue<T>, IDeriva
             invariant(
                 false,
                 process.env.NODE_ENV !== "production" &&
-                    `[ComputedValue '${this
-                        .name}'] It is not possible to assign a new value to a computed value.`
+                    `[ComputedValue '${this.name}'] It is not possible to assign a new value to a computed value.`
             )
     }
 
@@ -206,6 +207,7 @@ export class ComputedValue<T> implements IObservable, IComputedValue<T>, IDeriva
         )
     }
 
+    //计算 计算属性 的值并返回
     computeValue(track: boolean) {
         this.isComputing = true
         globalState.computationDepth++
@@ -260,14 +262,12 @@ export class ComputedValue<T> implements IObservable, IComputedValue<T>, IDeriva
         }
         if (this.isTracing !== TraceMode.NONE) {
             console.log(
-                `[mobx.trace] '${this
-                    .name}' is being read outside a reactive context. Doing a full recompute`
+                `[mobx.trace] '${this.name}' is being read outside a reactive context. Doing a full recompute`
             )
         }
         if (globalState.computedRequiresReaction) {
             console.warn(
-                `[mobx] Computed value ${this
-                    .name} is being read outside a reactive context. Doing a full recompute`
+                `[mobx] Computed value ${this.name} is being read outside a reactive context. Doing a full recompute`
             )
         }
     }
@@ -279,8 +279,9 @@ export class ComputedValue<T> implements IObservable, IComputedValue<T>, IDeriva
     toString() {
         return `${this.name}[${this.derivation.toString()}]`
     }
-
+    //调用计算属性的值的时候会触发该值的valueOf()方法 —— computedValue的 valueOf() 方法
     valueOf(): T {
+        //其实就是调用 this.get() 方法
         return toPrimitive(this.get())
     }
 }

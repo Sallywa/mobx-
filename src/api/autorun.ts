@@ -39,9 +39,10 @@ export function autorun(
     const runSync = !opts.scheduler && !opts.delay
     let reaction: Reaction
 
+    //同步模式
     if (runSync) {
         // normal autorun
-        // Reaction类，其关键特征是 监督并控制任务的执行
+        // Reaction类监督并控制任务的执行
         reaction = new Reaction(
             name,
             function(this: Reaction) {
@@ -49,13 +50,14 @@ export function autorun(
             },
             opts.onError
         )
+        //自定义scheduler 或者设置了delay的情况
     } else {
         const scheduler = createSchedulerFromOptions(opts)
         // debounced autorun
         let isScheduled = false
 
         //第一步
-        // Reaction类，其关键特征是 监督并控制任务的执行
+        // Reaction类：监督并控制任务的执行
         reaction = new Reaction(
             name,
             () => {
