@@ -9,6 +9,7 @@ export type IObservableDecorator = {
 }
 
 export function createDecoratorForEnhancer(enhancer: IEnhancer<any>): IObservableDecorator {
+    //createPropDecorator返回的是一个function --> decoratorFactory
     const decorator = createPropDecorator(
         true,
         (
@@ -19,7 +20,10 @@ export function createDecoratorForEnhancer(enhancer: IEnhancer<any>): IObservabl
             decoratorArgs: any[]
         ) => {
             const initialValue = descriptor
-                ? descriptor.initializer ? descriptor.initializer.call(target) : descriptor.value
+                ? //???
+                  descriptor.initializer
+                    ? descriptor.initializer.call(target)
+                    : descriptor.value
                 : undefined
             defineObservableProperty(target, propertyName, initialValue, enhancer)
         }

@@ -62,12 +62,23 @@ export function initializeInstance(target: DecoratorTarget) {
 }
 
 export function createPropDecorator(
-    propertyInitiallyEnumerable: boolean,
+    propertyInitiallyEnumerable: boolean, //true
     propertyCreator: PropertyCreator
+    // (
+    //     target: any,
+    //     propertyName: string,
+    //     descriptor: BabelDescriptor,
+    //     _decoratorTarget,
+    //     decoratorArgs: any[]
+    // ) => {
+    //     const initialValue = descriptor
+    //         ? descriptor.initializer ? descriptor.initializer.call(target) : descriptor.value
+    //         : undefined
+    //     defineObservableProperty(target, propertyName, initialValue, enhancer)
+    // }
 ) {
     return function decoratorFactory() {
         let decoratorArguments: any[]
-
         const decorator = function decorate(
             target: DecoratorTarget,
             prop: string,

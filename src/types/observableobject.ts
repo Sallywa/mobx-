@@ -222,11 +222,13 @@ export interface IIsObservableObject {
     $mobx: ObservableObjectAdministration
 }
 
+//给target挂载上$mobx属性 $mobx属性是一个ObservableObjectAdministration对象
 export function asObservableObject(
     target, // {}
     name: string = "",
     defaultEnhancer: IEnhancer<any> = deepEnhancer
 ): ObservableObjectAdministration {
+    //已经有$mobx属性 return
     let adm = (target as any).$mobx
     if (adm) return adm
 
@@ -238,11 +240,14 @@ export function asObservableObject(
     if (!isPlainObject(target))
         name = (target.constructor.name || "ObservableObject") + "@" + getNextId()
     if (!name) name = "ObservableObject@" + getNextId()
-
+    //target是一个空的对象 上面有$mobx属性 === adm
     //$mobx 属性是一个 ObservableObjectAdministration 对象
     adm = new ObservableObjectAdministration(target, name, defaultEnhancer)
-    //addHiddenFinalProp 是一个 Object.defineProperty, 用于把$mobx属性添加到adm上去
+    //addHiddenFinalProp 是一个 Object.defineProperty, 用于把$mobx属性添加到target上去 内容为adm
     addHiddenFinalProp(target, "$mobx", adm)
+    // --> {
+    //     $mobx: adm = new ObservableObjectAdministration(target, name, defaultEnhancer)
+    // }
     return adm
 }
 
@@ -252,6 +257,7 @@ export function defineObservableProperty(
     newValue,
     enhancer: IEnhancer<any>
 ) {
+    //给target挂载上$mobx属性 $mobx属性是一个ObservableObjectAdministration对象
     const adm = asObservableObject(target)
     assertPropertyConfigurable(target, propName)
 
@@ -265,6 +271,8 @@ export function defineObservableProperty(
         if (!change) return
         newValue = (change as any).newValue
     }
+
+    //这里的adm就是 $mobx属性，这样新生成的ObservableValue 实例就挂载在 $mobx.values[propName] 属性下
     const observable = (adm.values[propName] = new ObservableValue(
         newValue,
         enhancer,
@@ -273,6 +281,7 @@ export function defineObservableProperty(
     ))
     newValue = (observable as any).value // observableValue might have changed it
 
+    //把属性挂载上
     Object.defineProperty(target, propName, generateObservablePropConfig(propName))
     if (adm.keys) adm.keys.push(propName)
     notifyPropertyAddition(adm, target, propName, newValue)
@@ -293,6 +302,9 @@ export function defineComputedProperty(
 const observablePropertyConfigs = {}
 const computedPropertyConfigs = {}
 
+//该方法是作用在 decorator 装饰器其作用期间，用 generateObservablePropConfig
+//生成的描述符重写原始对象的描述符，仔细看描述符里的 get 和 set 方法，
+//对象属性的 读写分别映射到 $mobx.read 和 $mobx.write这两个方法中。
 export function generateObservablePropConfig(propName) {
     return (
         observablePropertyConfigs[propName] ||

@@ -141,6 +141,7 @@ export function checkIfStateModificationsAreAllowed(atom: IAtom) {
  * The tracking information is stored on the `derivation` object and the derivation is registered
  * as observer of any of the accessed observables.
  */
+// derivation为当前reaction f为autorun的具体内容 context为undefined
 export function trackDerivedFunction<T>(derivation: IDerivation, f: () => T, context: any) {
     // pre allocate array allocation + room for variation in deps
     // array will be trimmed by bindDependencies
@@ -149,9 +150,12 @@ export function trackDerivedFunction<T>(derivation: IDerivation, f: () => T, con
     derivation.unboundDepsCount = 0
     derivation.runId = ++globalState.runId
     const prevTracking = globalState.trackingDerivation
+    // 作用是将 derivation （此处等同于 reaction 对象）挂载到 ”全局变量“ globalState 的 trackingDerivation 属性上
+    // 这样其他对象就能获取到该 derivation 对象的数据了
     globalState.trackingDerivation = derivation
     let result
     if (globalState.disableErrorBoundaries === true) {
+        //执行autorun的内容 终于打印了
         result = f.call(context)
     } else {
         try {
@@ -160,7 +164,9 @@ export function trackDerivedFunction<T>(derivation: IDerivation, f: () => T, con
             result = new CaughtException(e)
         }
     }
+    //把当前的reaction 切换为上一个reaction
     globalState.trackingDerivation = prevTracking
+    //更新依赖
     bindDependencies(derivation)
     return result
 }

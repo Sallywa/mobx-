@@ -56,6 +56,19 @@ export class Reaction implements IDerivation, IReactionPublic {
     _isRunning = false
     isTracing: TraceMode = TraceMode.NONE
 
+    // reaction = new Reaction(
+    //     name, --> name
+    //     () => { --> onInvalidate
+    //         if (!isScheduled) {
+    //             isScheduled = true
+    //             scheduler(() => {
+    //                 isScheduled = false
+    //                 if (!reaction.isDisposed) reaction.track(reactionRunner)
+    //             })
+    //         }
+    //     },
+    //     opts.onError --> errorHandler
+    // )
     constructor(
         public name: string = "Reaction@" + getNextId(),
         private onInvalidate: () => void,
@@ -68,8 +81,11 @@ export class Reaction implements IDerivation, IReactionPublic {
 
     schedule() {
         if (!this._isScheduled) {
+            //加锁表示正在部署
             this._isScheduled = true
+            //将需要执行的reaction对象入列 pendingReactions等待执行的reaction
             globalState.pendingReactions.push(this)
+            //执行部署
             runReactions()
         }
     }
@@ -83,11 +99,14 @@ export class Reaction implements IDerivation, IReactionPublic {
      */
     runReaction() {
         if (!this.isDisposed) {
+            //startBatch() 和 endBatch() 这两个方法一定是成对出现
+            //用于影响 globalState 的 inBatch 属性，表明开启/关闭 一层新的事务
+            //startBatch === globalState.inBatch++
             startBatch()
             this._isScheduled = false
             if (shouldCompute(this)) {
                 this._isTrackPending = true
-
+                //onInvalidate 是 Reaction 类的一个属性，且在初始化 Reaction 时传入到构造函数中的，这样做的目的是方便做扩展。
                 this.onInvalidate()
                 if (this._isTrackPending && isSpyEnabled()) {
                     // onInvalidate didn't trigger track right away..
@@ -101,6 +120,7 @@ export class Reaction implements IDerivation, IReactionPublic {
         }
     }
 
+    //fn === reactionRunner
     track(fn: () => void) {
         startBatch()
         const notify = isSpyEnabled()
@@ -113,6 +133,9 @@ export class Reaction implements IDerivation, IReactionPublic {
             })
         }
         this._isRunning = true
+        // function reactionRunner() { --> reactionRunner
+        //     view(reaction)  --> view函数 就是autorun的内容
+        // }
         const result = trackDerivedFunction(this, fn, undefined)
         this._isRunning = false
         this._isTrackPending = false
@@ -193,6 +216,8 @@ export function onReactionError(handler: (error: any, derivation: IDerivation) =
  */
 const MAX_REACTION_ITERATIONS = 100
 
+//reactionScheduler是一个函数变量，函数的入参是一个返回空的函数,该函数返回空 === reactionScheduler = f => f()
+//reactionScheduler应该是用作规定格式规范
 let reactionScheduler: (fn: () => void) => void = f => f()
 
 export function runReactions() {
@@ -210,6 +235,7 @@ function runReactionsHelper() {
     // Hence we work with two variables and check whether
     // we converge to no remaining reactions after a while.
     while (allReactions.length > 0) {
+        //对reaction的总数量做限制 超过则不执行
         if (++iterations === MAX_REACTION_ITERATIONS) {
             console.error(
                 `Reaction doesn't converge to a stable state after ${MAX_REACTION_ITERATIONS} iterations.` +
@@ -217,7 +243,9 @@ function runReactionsHelper() {
             )
             allReactions.splice(0) // clear reactions
         }
+        //拷贝reactions到remainingReactions
         let remainingReactions = allReactions.splice(0)
+        //遍历执行他们的runReaction --> runReaction
         for (let i = 0, l = remainingReactions.length; i < l; i++)
             remainingReactions[i].runReaction()
     }

@@ -66,6 +66,7 @@ export function extendObservable<A extends Object, B extends Object>(
     asObservableObject(target, options.name, defaultDecorator.enhancer) // make sure object is observable, even without initial props
 
     // 第二步 循环遍历，将属性经过 decorator(装饰器) 改造后添加到 target 上 默认的decorator 是 deepDecorator
+    // 改造 === new observablevlaue
     startBatch()
     try {
         for (let key in properties) {

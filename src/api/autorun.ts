@@ -17,7 +17,14 @@ export interface IAutorunOptions {
  * @returns disposer function, which can be used to stop the view from being updated in the future.
  */
 export function autorun(
+    //执行的函数 ()=>{console.log('sally')}
     view: (r: IReactionPublic) => any,
+
+    // Autorun 接收第二个参数，它是一个参数对象，有如下可选的参数:
+    // delay: 可用于对效果函数进行去抖动的数字(以毫秒为单位)。如果是 0(默认值) 的话，那么不会进行去抖。
+    // name: 字符串，用于在例如像 spy 这样事件中用作此 reaction 的名称。
+    // onError: 用来处理 reaction 的错误，而不是传播它们。
+    // scheduler: 设置自定义调度器以决定如何调度 autorun 函数的重新运行
     opts: IAutorunOptions = EMPTY_OBJECT
 ): IReactionDisposer {
     if (process.env.NODE_ENV !== "production") {
@@ -32,8 +39,10 @@ export function autorun(
     const runSync = !opts.scheduler && !opts.delay
     let reaction: Reaction
 
+    //同步模式
     if (runSync) {
         // normal autorun
+        // Reaction类监督并控制任务的执行
         reaction = new Reaction(
             name,
             function(this: Reaction) {
@@ -41,11 +50,15 @@ export function autorun(
             },
             opts.onError
         )
-    } else {
+    }
+    //自定义scheduler 或者设置了delay的情况
+    else {
         const scheduler = createSchedulerFromOptions(opts)
         // debounced autorun
         let isScheduled = false
 
+        //第一步
+        // Reaction类：监督并控制任务的执行
         reaction = new Reaction(
             name,
             () => {
@@ -61,10 +74,11 @@ export function autorun(
         )
     }
 
+    //第二步
     function reactionRunner() {
         view(reaction)
     }
-
+    //第三步
     reaction.schedule()
     return reaction.getDisposer()
 }
@@ -79,7 +93,9 @@ const run = (f: Lambda) => f()
 function createSchedulerFromOptions(opts: IReactionOptions) {
     return opts.scheduler
         ? opts.scheduler
-        : opts.delay ? (f: Lambda) => setTimeout(f, opts.delay!) : run
+        : opts.delay
+        ? (f: Lambda) => setTimeout(f, opts.delay!)
+        : run
 }
 
 export function reaction<T>(
